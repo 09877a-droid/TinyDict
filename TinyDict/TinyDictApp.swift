@@ -36,14 +36,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // 3. 注册系统服务（用于右键菜单）
         NSApp.servicesProvider = self
 
-        // 4. 【核心】代码写死快捷键监听：Command + Option + S
-        // 注意：这需要“系统设置-隐私与安全-辅助功能”授权
-        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-            // Command (1048576) + Option (524288)
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if flags == [.command, .option] && event.keyCode == 1 { // 1 是 S 键
-                self.handleHotKey()
-            }
+        // 4. 启动时显示窗口
+        showWindow()
+
+        // 5. 【核心】全局快捷键监听（免系统辅助功能授权）
+        HotKeyManager.shared.setup { [weak self] in
+            self?.handleHotKey()
         }
     }
 
