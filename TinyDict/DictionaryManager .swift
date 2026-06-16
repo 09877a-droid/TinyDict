@@ -7,6 +7,7 @@ struct WordEntry: Identifiable, Codable {
     var id = UUID()
     let word: String
     let definition: String
+    var suggestion: String?
 }
 
 class DictionaryManager: ObservableObject {
@@ -26,7 +27,11 @@ class DictionaryManager: ObservableObject {
         // 2. 调用系统词典
         let range = CFRangeMake(0, cleaned.utf16.count)
         guard let definitionRaw = DCSCopyTextDefinition(nil, cleaned as CFString, range) else {
-            self.updateEntry(word: cleaned, def: "系统词典无结果")
+            let checker = NSSpellChecker.shared
+            let spellRange = NSRange(location: 0, length: cleaned.utf16.count)
+            let guesses = checker.guesses(forWordRange: spellRange, in: cleaned, language: "en", inSpellDocumentWithTag: 0)
+            let suggestion = guesses?.first
+            self.updateEntry(word: cleaned, def: "系统词典无结果", suggestion: suggestion)
             return
         }
         
@@ -37,13 +42,27 @@ class DictionaryManager: ObservableObject {
         self.updateEntry(word: cleaned, def: simple)
     }
 
-    private func updateEntry(word: String, def: String) {
+    private func updateEntry(word: String, def: String, suggestion: String? = nil) {
         DispatchQueue.main.async {
             self.history.removeAll { $0.word.lowercased() == word.lowercased() }
-            self.history.insert(WordEntry(word: word, definition: def), at: 0)
+            self.history.insert(WordEntry(word: word, definition: def, suggestion: suggestion), at: 0)
             if self.history.count > 100 { self.history.removeLast() }
             self.saveHistory()
         }
+    }
+
+    private func cleanEnglish(_ raw: String) -> String {
+        let lines = raw.components(separatedBy: .newlines)
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                if trimmed.count > 100 {
+                    return String(trimmed.prefix(97)) + "..."
+                }
+                return trimmed
+            }
+        }
+        return "未找到释义"
     }
 
     // --- 稳健版提取逻辑：直接遍历字符，不使用正则表达式 ---
@@ -74,7 +93,10 @@ class DictionaryManager: ObservableObject {
         if results.isEmpty {
             // 保底方案：如果没有词块，抓取前 10 个单字汉字
             let allChinese = raw.filter { ("\u{4E00}"..."\u{9FFF}").contains($0) }
-            if allChinese.isEmpty { return "未找到中文释义" }
+            if allChinese.isEmpty { 
+                let englishDef = cleanEnglish(raw)
+                return "[纯英文词典] \(englishDef)" 
+            }
             return String(allChinese.prefix(10))
         }
 

@@ -26,22 +26,45 @@ struct ContentView: View {
             Divider()
             
             List(mgr.history) { entry in
-                HStack(alignment: .top, spacing: 12) {
-                    Text(entry.word)
-                        .font(.system(size: 14, weight: .bold))
-                        .frame(width: 80, alignment: .leading)
-                        .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Text(entry.word)
+                            .font(.system(size: 14, weight: .bold))
+                            .frame(width: 80, alignment: .leading)
+                            .foregroundColor(.primary)
+                        
+                        Text(entry.definition)
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(nil)
+                        Spacer()
+                    }
                     
-                    Text(entry.definition)
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .lineLimit(nil)
-                    Spacer()
+                    if let suggestion = entry.suggestion {
+                        Button(action: {
+                            searchField = suggestion
+                            mgr.lookup(word: suggestion)
+                        }) {
+                            Text("您是不是想找: \(suggestion) ?")
+                                .font(.system(size: 12))
+                                .foregroundColor(.blue)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, 92)
+                    }
                 }
                 .padding(.vertical, 6)
             }
             .listStyle(.plain)
+            
+            Divider()
+            
+            Text("提示：若仅显示英文释义，请在系统“词典.app”的设置中勾选“简体中文-英文”词典")
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+                .padding(.vertical, 6)
+                .multilineTextAlignment(.center)
         }
         .frame(minWidth: 320, minHeight: 450)
     }
